@@ -15,4 +15,17 @@ const projects = defineCollection({
   }),
 });
 
-export const collections = { projects };
+// Short, dated "what I shipped" entries. Drafted by the digest workflow,
+// published after review. Filename convention: YYYY-MM-DD-slug.md
+const changelog = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/changelog' }),
+  schema: z.object({
+    date: z.coerce.date(),
+    title: z.string(),
+    summary: z.string().optional(),
+    tags: z.array(z.string()).default([]),
+    draft: z.boolean().default(false),
+  }),
+});
+
+export const collections = { projects, changelog };

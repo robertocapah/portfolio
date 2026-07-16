@@ -1,0 +1,94 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+
+const entries = (await getCollection('changelog'))
+  .filter((e) => !e.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+// Render each entry's markdown body and group by "Month Year".
+const rendered = await Promise.all(
+  entries.map(async (entry) => {
+    const { Content } = await render(entry);
+    const monthKey = entry.data.date.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
+    const dayLabel = entry.data.date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+    return { entry, Content, monthKey, dayLabel };
+  }),
+);
+
+const groups: { month: string; items: typeof rendered }[] = [];
+for (const item of rendered) {
+  const last = groups[groups.length - 1];
+  if (last && last.month === item.monthKey) last.items.push(item);
+  else groups.push({ month: item.monthKey, items: [item] });
+}
+---
+
+<Base
+  title="Log — Roberto Capah"
+  description="A running log of what I'm building — shipped work, week by week."
+>
+  <section class="flex flex-col gap-5">
+    <p class="eyebrow">Work Log</p>
+    <h1 class="text-3xl font-semibold tracking-tight text-fg sm:text-4xl">
+      What I've been shipping
+    </h1>
+    <p class="max-w-xl text-lg leading-relaxed text-muted">
+      A running record of the work — updated regularly. The bigger efforts grow
+      into <a href="/projects" class="text-accent underline underline-offset-4"
+        >case studies</a
+      >; this is the week-to-week.
+    </p>
+  </section>
+
+  <div class="mt-12 flex flex-col gap-12">
+    {
+      groups.map((group) => (
+        <section>
+          <h2 class="mb-5 font-mono text-xs uppercase tracking-wider text-faint">
+            {group.month}
+          </h2>
+          <ol class="flex flex-col gap-0">
+            {group.items.map(({ entry, Content, dayLabel }) => (
+              <li class="relative flex flex-col gap-3 border-l border-border pb-10 pl-6 last:pb-0 sm:flex-row sm:gap-8 sm:pl-8">
+                <span class="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-bg bg-accent" />
+                <time class="shrink-0 font-mono text-xs text-faint sm:w-20 sm:pt-1">
+                  {dayLabel}
+                </time>
+                <div class="flex flex-col gap-2">
+                  <h3 class="text-lg font-semibold tracking-tight text-fg">
+                    {entry.data.title}
+                  </h3>
+                  <div class="prose max-w-none text-sm">
+                    <Content />
+                  </div>
+                  {entry.data.tags.length > 0 && (
+                    <div class="mt-1 flex flex-wrap gap-2">
+                      {entry.data.tags.map((tag) => (
+                        <span class="font-mono text-[0.7rem] uppercase tracking-wider text-faint">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))
+    }
+  </div>
+
+  {
+    groups.length === 0 && (
+      <p class="mt-8 font-mono text-sm text-faint">No entries yet.</p>
+    )
+  }
+</Base>

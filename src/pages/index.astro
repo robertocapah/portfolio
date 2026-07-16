@@ -6,6 +6,11 @@ import ProjectCard from '../components/ProjectCard.astro';
 const featured = (await getCollection('projects'))
   .filter((p) => p.data.featured && !p.data.draft)
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const latestLog = (await getCollection('changelog'))
+  .filter((e) => !e.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .slice(0, 2);
 ---
 
 <Base
@@ -67,4 +72,42 @@ const featured = (await getCollection('projects'))
       }
     </div>
   </section>
+
+  {
+    latestLog.length > 0 && (
+      <section class="mt-20">
+        <div class="mb-6 flex items-baseline justify-between">
+          <h2 class="text-sm font-semibold uppercase tracking-wider text-faint">
+            Latest from the log
+          </h2>
+          <a
+            href="/log"
+            class="font-mono text-xs text-muted transition-colors hover:text-accent"
+          >
+            full log →
+          </a>
+        </div>
+        <ul class="flex flex-col divide-y divide-border rounded-xl border border-border bg-surface">
+          {latestLog.map((e) => (
+            <li>
+              <a
+                href="/log"
+                class="group flex items-baseline gap-4 px-5 py-4 transition-colors hover:bg-surface-2"
+              >
+                <time class="shrink-0 font-mono text-xs text-faint">
+                  {e.data.date.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </time>
+                <span class="text-sm text-muted transition-colors group-hover:text-fg">
+                  {e.data.title}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
 </Base>

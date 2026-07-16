@@ -16,3 +16,7 @@ node_modules/
 # obsidian workspace (the vault content stays tracked; only local UI state is ignored)
 src/content/.obsidian/workspace.json
 src/content/.obsidian/workspace-mobile.json
+
+# private daily journal — local capture only, never published or pushed.
+# The digest workflow reads these locally to draft public changelog entries.
+src/content/journal/
