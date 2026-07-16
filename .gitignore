@@ -1,0 +1,18 @@
+# build output
+dist/
+.astro/
+
+# dependencies
+node_modules/
+
+# vercel
+.vercel/
+
+# environment / editor
+.env
+.env.production
+.DS_Store
+
+# obsidian workspace (the vault content stays tracked; only local UI state is ignored)
+src/content/.obsidian/workspace.json
+src/content/.obsidian/workspace-mobile.json

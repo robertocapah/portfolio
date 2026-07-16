@@ -1,0 +1,208 @@
+---
+import Base from '../layouts/Base.astro';
+
+// Commit velocity across the AI-adoption ramp (monthly commits, 2026).
+const series = [
+  { month: 'Jan', commits: 26 },
+  { month: 'Feb', commits: 31 },
+  { month: 'Mar', commits: 48 },
+  { month: 'Apr', commits: 74 },
+  { month: 'May', commits: 97 },
+  { month: 'Jun', commits: 124 },
+];
+
+// Chart geometry (static SVG, no chart library).
+const W = 640;
+const H = 280;
+const padX = 44;
+const padTop = 24;
+const padBottom = 40;
+const plotW = W - padX - 16;
+const plotH = H - padTop - padBottom;
+const maxVal = 130;
+const barGap = 18;
+const barW = (plotW - barGap * (series.length - 1)) / series.length;
+const yFor = (v: number) => padTop + plotH - (v / maxVal) * plotH;
+const gridLines = [0, 25, 50, 75, 100, 125];
+
+const timeline = [
+  {
+    phase: 'Assistant',
+    body: 'Started with AI as an autocomplete-plus — snippets, boilerplate, and quick lookups. Useful, but I still drove every keystroke.',
+  },
+  {
+    phase: 'Pair',
+    body: 'Shifted to pairing: describing intent, reviewing generated diffs, and letting AI hold context across a whole change. Velocity climbed as review replaced typing.',
+  },
+  {
+    phase: 'Fleet',
+    body: 'Built specialised agents that own a single job against my project’s real conventions — crash hunting, security audits, style enforcement, review, tests, releases.',
+  },
+  {
+    phase: 'Systems',
+    body: 'Now I engineer the systems AI runs inside — agentic release workflows, a crash-to-task pipeline, CI infrastructure — so the careful path is automatic, not optional.',
+  },
+];
+---
+
+<Base
+  title="How I ship with AI — Roberto Capah"
+  description="From AI-as-autocomplete to engineering the systems AI runs inside. My AI-adoption timeline and a ~5x commit-velocity increase, told honestly."
+>
+  <section class="flex flex-col gap-5">
+    <p class="eyebrow">Working Method</p>
+    <h1 class="text-3xl font-semibold tracking-tight text-fg sm:text-4xl">
+      How I ship with AI
+    </h1>
+    <p class="max-w-xl text-lg leading-relaxed text-muted">
+      I treat AI as a teammate I engineer around — not a magic button. The value
+      isn't the code it types; it's the repeatable, reviewable systems you can
+      build once you stop typing and start orchestrating.
+    </p>
+  </section>
+
+  <section class="mt-14">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-faint">
+      Commit velocity, 2026
+    </h2>
+    <p class="mt-2 max-w-xl text-sm leading-relaxed text-muted">
+      As my workflow moved from assistant to agent fleet, monthly commit volume
+      grew roughly <strong class="text-fg">5×</strong> — from a ~26/month
+      baseline to a 124/month peak in June. Volume isn't quality, but it tracks
+      how much more ground the same hours now cover.
+    </p>
+
+    <figure
+      class="mt-6 rounded-xl border border-border bg-surface p-4 sm:p-6"
+    >
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        class="h-auto w-full"
+        role="img"
+        aria-label="Bar chart of monthly commits in 2026, rising from 26 in January to 124 in June."
+      >
+        {
+          gridLines.map((g) => (
+            <g>
+              <line
+                x1={padX}
+                x2={W - 16}
+                y1={yFor(g)}
+                y2={yFor(g)}
+                stroke="var(--color-border)"
+                stroke-width="1"
+              />
+              <text
+                x={padX - 10}
+                y={yFor(g) + 4}
+                text-anchor="end"
+                font-family="var(--font-mono)"
+                font-size="11"
+                fill="var(--color-faint)"
+              >
+                {g}
+              </text>
+            </g>
+          ))
+        }
+        {
+          series.map((d, i) => {
+            const x = padX + i * (barW + barGap);
+            const y = yFor(d.commits);
+            const h = padTop + plotH - y;
+            const isPeak = i === series.length - 1;
+            return (
+              <g>
+                <rect
+                  x={x}
+                  y={y}
+                  width={barW}
+                  height={h}
+                  rx="4"
+                  fill="var(--color-accent)"
+                  opacity={isPeak ? '1' : '0.45'}
+                />
+                <text
+                  x={x + barW / 2}
+                  y={y - 8}
+                  text-anchor="middle"
+                  font-family="var(--font-mono)"
+                  font-size="12"
+                  fill="var(--color-fg)"
+                >
+                  {d.commits}
+                </text>
+                <text
+                  x={x + barW / 2}
+                  y={H - 16}
+                  text-anchor="middle"
+                  font-family="var(--font-mono)"
+                  font-size="12"
+                  fill="var(--color-muted)"
+                >
+                  {d.month}
+                </text>
+              </g>
+            );
+          })
+        }
+      </svg>
+      <figcaption class="mt-3 font-mono text-xs text-faint">
+        Monthly commits · Jan–Jun 2026 · self-reported from git history
+      </figcaption>
+    </figure>
+  </section>
+
+  <section class="mt-16">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-faint">
+      The adoption arc
+    </h2>
+    <ol class="mt-6 flex flex-col gap-0">
+      {
+        timeline.map((t, i) => (
+          <li class="relative flex gap-5 pb-8 last:pb-0">
+            <div class="flex flex-col items-center">
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent bg-accent-soft font-mono text-xs text-accent">
+                {i + 1}
+              </span>
+              {i < timeline.length - 1 && (
+                <span class="mt-1 w-px flex-1 bg-border" />
+              )}
+            </div>
+            <div class="flex flex-col gap-1.5 pt-1">
+              <h3 class="font-semibold tracking-tight text-fg">{t.phase}</h3>
+              <p class="text-sm leading-relaxed text-muted">{t.body}</p>
+            </div>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+
+  <section
+    class="mt-16 grid grid-cols-2 gap-4 sm:grid-cols-3"
+    aria-label="Key numbers"
+  >
+    {
+      [
+        { n: '7', l: 'custom AI agents' },
+        { n: '42', l: 'indexed bugfix docs' },
+        { n: '~5×', l: 'commit velocity' },
+      ].map((s) => (
+        <div class="rounded-xl border border-border bg-surface p-5">
+          <div class="font-mono text-3xl font-semibold text-accent">{s.n}</div>
+          <div class="mt-1 text-sm text-muted">{s.l}</div>
+        </div>
+      ))
+    }
+  </section>
+
+  <section class="mt-16 border-t border-border pt-8">
+    <p class="max-w-xl text-lg leading-relaxed text-muted">
+      Want the detail? The
+      <a href="/projects" class="text-accent underline underline-offset-4"
+        >case studies</a
+      > break down exactly what I built and why.
+    </p>
+  </section>
+</Base>

@@ -1,0 +1,105 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import ProjectCard from '../../components/ProjectCard.astro';
+
+const projects = (await getCollection('projects'))
+  .filter((p) => !p.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const tags = ['AI Agents', 'CI/CD', 'Security', 'Tooling'] as const;
+---
+
+<Base
+  title="Projects — Roberto Capah"
+  description="Case studies in AI-assisted engineering: agent fleets, agentic release workflows, CI/CD infrastructure, security audits, and developer tooling."
+>
+  <section class="flex flex-col gap-4">
+    <p class="eyebrow">Case Studies</p>
+    <h1 class="text-3xl font-semibold tracking-tight text-fg sm:text-4xl">
+      Things I've built
+    </h1>
+    <p class="max-w-xl text-lg leading-relaxed text-muted">
+      Sanitised case studies from real production work — the problem, the
+      approach, what I built, and what I took away.
+    </p>
+  </section>
+
+  <div
+    class="mt-10 flex flex-wrap gap-2"
+    role="group"
+    aria-label="Filter projects by tag"
+  >
+    <button
+      data-filter="all"
+      class="filter-btn rounded-full border border-accent bg-accent px-3.5 py-1.5 font-mono text-xs text-on-accent"
+      aria-pressed="true"
+    >
+      All
+    </button>
+    {
+      tags.map((tag) => (
+        <button
+          data-filter={tag}
+          class="filter-btn rounded-full border border-border px-3.5 py-1.5 font-mono text-xs text-muted transition-colors hover:border-accent/60 hover:text-fg"
+          aria-pressed="false"
+        >
+          {tag}
+        </button>
+      ))
+    }
+  </div>
+
+  <div id="project-list" class="mt-6 flex flex-col gap-4">
+    {
+      projects.map((p) => (
+        <ProjectCard
+          href={`/projects/${p.id}`}
+          title={p.data.title}
+          summary={p.data.summary}
+          tags={p.data.tags}
+        />
+      ))
+    }
+  </div>
+
+  <p id="empty-state" class="mt-8 hidden font-mono text-sm text-faint">
+    No projects with that tag yet.
+  </p>
+</Base>
+
+<script>
+  const buttons =
+    document.querySelectorAll<HTMLButtonElement>('.filter-btn');
+  const cards =
+    document.querySelectorAll<HTMLAnchorElement>('.project-card');
+  const empty = document.getElementById('empty-state');
+
+  function setActive(btn: HTMLButtonElement) {
+    buttons.forEach((b) => {
+      const on = b === btn;
+      b.setAttribute('aria-pressed', String(on));
+      b.classList.toggle('border-accent', on);
+      b.classList.toggle('bg-accent', on);
+      b.classList.toggle('text-on-accent', on);
+      b.classList.toggle('border-border', !on);
+      b.classList.toggle('text-muted', !on);
+    });
+  }
+
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const filter = btn.dataset.filter;
+      setActive(btn);
+      let visible = 0;
+      cards.forEach((card) => {
+        const tags = (card.dataset.tags ?? '').split(',');
+        const show = filter === 'all' || tags.includes(filter ?? '');
+        card.classList.toggle('hidden', !show);
+        if (show) visible++;
+      });
+      empty?.classList.toggle('hidden', visible !== 0);
+    });
+  });
+
+</script>

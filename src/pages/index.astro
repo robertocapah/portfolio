@@ -1,0 +1,70 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import ProjectCard from '../components/ProjectCard.astro';
+
+const featured = (await getCollection('projects'))
+  .filter((p) => p.data.featured && !p.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<Base
+  title="Roberto Capah — Android Engineer shipping with AI"
+  description="Android engineer at Bareksa. I build custom AI agent fleets, agentic release workflows, and CI/CD infrastructure — and ship production software with an AI pair."
+>
+  <section class="flex flex-col gap-6">
+    <p class="eyebrow">Android Engineer · Jakarta</p>
+    <h1
+      class="text-4xl font-semibold leading-[1.1] tracking-tight text-fg sm:text-5xl"
+    >
+      I build production Android software —
+      <span class="text-accent">and the AI systems that ship it.</span>
+    </h1>
+    <p class="max-w-xl text-lg leading-relaxed text-muted">
+      I'm Roberto, an Android engineer at Bareksa, an Indonesian investment
+      super-app. Alongside feature work, I design custom AI agent fleets,
+      agentic release workflows, and CI/CD infrastructure — treating AI as a
+      teammate I engineer around, not a novelty.
+    </p>
+    <div class="mt-2 flex flex-wrap gap-3">
+      <a
+        href="/projects"
+        class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent transition-opacity hover:opacity-90"
+      >
+        View the work
+      </a>
+      <a
+        href="/ai"
+        class="rounded-lg border border-border px-4 py-2 text-sm font-medium text-fg transition-colors hover:border-accent/60"
+      >
+        How I ship with AI
+      </a>
+    </div>
+  </section>
+
+  <section class="mt-20">
+    <div class="mb-6 flex items-baseline justify-between">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-faint">
+        Featured work
+      </h2>
+      <a
+        href="/projects"
+        class="font-mono text-xs text-muted transition-colors hover:text-accent"
+      >
+        all projects →
+      </a>
+    </div>
+    <div class="flex flex-col gap-4">
+      {
+        featured.map((p) => (
+          <ProjectCard
+            href={`/projects/${p.id}`}
+            title={p.data.title}
+            summary={p.data.summary}
+            tags={p.data.tags}
+          />
+        ))
+      }
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,89 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+export async function getStaticPaths() {
+  const projects = (await getCollection('projects')).filter(
+    (p) => !p.data.draft,
+  );
+  return projects.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+
+const formattedDate = entry.data.date.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+});
+---
+
+<Base title={`${entry.data.title} — Roberto Capah`} description={entry.data.summary}>
+  <a
+    href="/projects"
+    class="font-mono text-xs text-muted transition-colors hover:text-accent"
+  >
+    ← all projects
+  </a>
+
+  <article class="mt-6">
+    <header class="flex flex-col gap-4 border-b border-border pb-8">
+      <div class="flex flex-wrap items-center gap-2">
+        {
+          entry.data.tags.map((tag) => (
+            <span class="font-mono text-[0.7rem] uppercase tracking-wider text-accent">
+              {tag}
+            </span>
+          ))
+        }
+      </div>
+      <h1
+        class="text-3xl font-semibold leading-tight tracking-tight text-fg sm:text-4xl"
+      >
+        {entry.data.title}
+      </h1>
+      <p class="text-lg leading-relaxed text-muted">{entry.data.summary}</p>
+
+      <dl
+        class="mt-2 flex flex-wrap gap-x-8 gap-y-3 font-mono text-xs text-faint"
+      >
+        <div class="flex flex-col gap-0.5">
+          <dt class="uppercase tracking-wider">Date</dt>
+          <dd class="text-muted">{formattedDate}</dd>
+        </div>
+        {
+          entry.data.role && (
+            <div class="flex flex-col gap-0.5">
+              <dt class="uppercase tracking-wider">Role</dt>
+              <dd class="text-muted">{entry.data.role}</dd>
+            </div>
+          )
+        }
+        {
+          entry.data.stack.length > 0 && (
+            <div class="flex flex-col gap-0.5">
+              <dt class="uppercase tracking-wider">Stack</dt>
+              <dd class="text-muted">{entry.data.stack.join(' · ')}</dd>
+            </div>
+          )
+        }
+      </dl>
+    </header>
+
+    <div class="prose mt-10">
+      <Content />
+    </div>
+  </article>
+
+  <div class="mt-14 border-t border-border pt-8">
+    <a
+      href="/projects"
+      class="font-mono text-sm text-muted transition-colors hover:text-accent"
+    >
+      ← Back to all projects
+    </a>
+  </div>
+</Base>

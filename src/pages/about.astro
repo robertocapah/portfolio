@@ -1,0 +1,122 @@
+---
+import Base from '../layouts/Base.astro';
+
+const experience = [
+  {
+    role: 'Android Engineer',
+    org: 'Bareksa',
+    period: '2023 — Present',
+    notes: [
+      'Native Android development on an Indonesian investment super-app spanning mutual funds, bonds, gold, and equities.',
+      'Built a fleet of custom AI agents and agentic release workflows adopted into the team’s day-to-day.',
+      'Engineered CI/CD infrastructure — a self-hosted build runner, a cloud device-test lab, and reliable release builds.',
+    ],
+  },
+];
+
+const skills = [
+  { group: 'Android', items: ['Kotlin', 'Jetpack Compose', 'Coroutines', 'Hilt', 'Clean Architecture', 'MVVM'] },
+  { group: 'Platform', items: ['Gradle', 'GitLab CI', 'Firebase', 'Room / SQLCipher', 'Retrofit / OkHttp'] },
+  { group: 'AI Engineering', items: ['Agent design', 'Prompt engineering', 'Agentic workflows', 'AI pair-programming'] },
+  { group: 'Also', items: ['Node.js', 'Web (Astro / React)', 'CI/CD', 'Design tokens'] },
+];
+---
+
+<Base
+  title="About — Roberto Capah"
+  description="Android engineer at Bareksa in Jakarta, focused on native Android and AI-assisted engineering — agent fleets, agentic workflows, and CI/CD."
+>
+  <section class="flex flex-col gap-5">
+    <p class="eyebrow">About</p>
+    <h1 class="text-3xl font-semibold tracking-tight text-fg sm:text-4xl">
+      Roberto Capah
+    </h1>
+    <p class="max-w-xl text-lg leading-relaxed text-muted">
+      Android engineer based in Jakarta. I ship native Android for a
+      fintech super-app, and I spend a lot of my energy on the layer above the
+      code — the AI agents, workflows, and infrastructure that make shipping
+      fast and safe. I care about invariants, reproducibility, and making the
+      careful path the default.
+    </p>
+  </section>
+
+  <section class="mt-14">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-faint">
+      Experience
+    </h2>
+    <div class="mt-6 flex flex-col gap-8">
+      {
+        experience.map((e) => (
+          <div class="flex flex-col gap-3">
+            <div class="flex flex-wrap items-baseline justify-between gap-x-4">
+              <h3 class="text-lg font-semibold tracking-tight text-fg">
+                {e.role} · <span class="text-accent">{e.org}</span>
+              </h3>
+              <span class="font-mono text-xs text-faint">{e.period}</span>
+            </div>
+            <ul class="flex flex-col gap-2">
+              {e.notes.map((n) => (
+                <li class="relative pl-5 text-sm leading-relaxed text-muted">
+                  <span class="absolute left-0 top-2.5 h-1.5 w-1.5 rounded-[1px] bg-accent" />
+                  {n}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="mt-14">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-faint">
+      Skills
+    </h2>
+    <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+      {
+        skills.map((s) => (
+          <div class="flex flex-col gap-3">
+            <h3 class="font-mono text-xs uppercase tracking-wider text-accent">
+              {s.group}
+            </h3>
+            <ul class="flex flex-wrap gap-2">
+              {s.items.map((i) => (
+                <li class="rounded-md border border-border bg-surface px-2.5 py-1 text-xs text-muted">
+                  {i}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="mt-14 border-t border-border pt-8">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-faint">
+      Get in touch
+    </h2>
+    <div class="mt-5 flex flex-wrap gap-3">
+      <a
+        href="mailto:roberto.capah@gmail.com"
+        class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent transition-opacity hover:opacity-90"
+      >
+        Email me
+      </a>
+      <a
+        href="https://github.com/robertocapah"
+        class="rounded-lg border border-border px-4 py-2 text-sm font-medium text-fg transition-colors hover:border-accent/60"
+        rel="me noopener"
+      >
+        GitHub
+      </a>
+      <a
+        href="https://www.linkedin.com/in/robertocapah"
+        class="rounded-lg border border-border px-4 py-2 text-sm font-medium text-fg transition-colors hover:border-accent/60"
+        rel="me noopener"
+      >
+        LinkedIn
+      </a>
+    </div>
+  </section>
+</Base>

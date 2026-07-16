@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#0c0a09"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#fb923c"/>
+  <text x="80" y="150" font-family="ui-monospace, monospace" font-size="28" fill="#fb923c">~/roberto</text>
+  <text x="80" y="300" font-family="ui-sans-serif, system-ui, sans-serif" font-size="72" font-weight="700" fill="#f5f5f4">Roberto Capah</text>
+  <text x="80" y="380" font-family="ui-sans-serif, system-ui, sans-serif" font-size="40" font-weight="500" fill="#a8a29e">Android Engineer shipping with AI</text>
+  <text x="80" y="540" font-family="ui-monospace, monospace" font-size="26" fill="#78716c">Agent fleets · Agentic release workflows · CI/CD</text>
+</svg>
