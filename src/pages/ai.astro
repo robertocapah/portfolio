@@ -1,15 +1,18 @@
 ---
 import Base from '../layouts/Base.astro';
 
-// Commit velocity across the AI-adoption ramp (monthly commits, 2026).
+// Commit velocity, counted from git history (monthly commits, 2026).
+// `ai` = commits with a "Co-Authored-By: Claude" trailer. First one: 2026-04-30.
 const series = [
-  { month: 'Jan', commits: 26 },
-  { month: 'Feb', commits: 31 },
-  { month: 'Mar', commits: 48 },
-  { month: 'Apr', commits: 74 },
-  { month: 'May', commits: 97 },
-  { month: 'Jun', commits: 124 },
+  { month: 'Jan', commits: 24, ai: 0 },
+  { month: 'Feb', commits: 58, ai: 0 },
+  { month: 'Mar', commits: 27, ai: 0 },
+  { month: 'Apr', commits: 68, ai: 8 },
+  { month: 'May', commits: 97, ai: 71 },
+  { month: 'Jun', commits: 152, ai: 116 },
+  { month: 'Jul*', commits: 126, ai: 81, partial: true },
 ];
+const baseline = 30; // 2025 monthly average, same repo, pre-AI.
 
 // Chart geometry (static SVG, no chart library).
 const W = 640;
@@ -19,28 +22,32 @@ const padTop = 24;
 const padBottom = 40;
 const plotW = W - padX - 16;
 const plotH = H - padTop - padBottom;
-const maxVal = 130;
-const barGap = 18;
+const maxVal = 160;
+const barGap = 16;
 const barW = (plotW - barGap * (series.length - 1)) / series.length;
 const yFor = (v: number) => padTop + plotH - (v / maxVal) * plotH;
-const gridLines = [0, 25, 50, 75, 100, 125];
+const gridLines = [0, 40, 80, 120, 160];
 
 const timeline = [
   {
     phase: 'Assistant',
-    body: 'Started with AI as an autocomplete-plus — snippets, boilerplate, and quick lookups. Useful, but I still drove every keystroke.',
+    when: 'Apr 2026',
+    body: 'First AI-co-authored commit lands April 30 — AI as an autocomplete-plus: snippets, boilerplate, quick lookups. Useful, but I still drove every keystroke.',
   },
   {
     phase: 'Pair',
-    body: 'Shifted to pairing: describing intent, reviewing generated diffs, and letting AI hold context across a whole change. Velocity climbed as review replaced typing.',
+    when: 'May 2026',
+    body: 'Shifted to pairing: describing intent, reviewing generated diffs, and letting AI hold context across a whole change. 71 of 97 commits that month were AI-paired.',
   },
   {
     phase: 'Fleet',
-    body: 'Built specialised agents that own a single job against my project’s real conventions — crash hunting, security audits, style enforcement, review, tests, releases.',
+    when: 'Jun 2026',
+    body: 'Built specialised agents that own a single job against my project’s real conventions — crash hunting, security audits, style enforcement, review, tests, releases. Peak month: 152 commits.',
   },
   {
     phase: 'Systems',
-    body: 'Now I engineer the systems AI runs inside — agentic release workflows, a crash-to-task pipeline, CI infrastructure — so the careful path is automatic, not optional.',
+    when: 'Jul 2026',
+    body: 'Now I engineer the systems AI runs inside — agentic release workflows, a crash-to-task pipeline, CI infrastructure — so the careful path is automatic, not optional. Three new standalone repos shipped this way.',
   },
 ];
 ---
@@ -66,10 +73,15 @@ const timeline = [
       Commit velocity, 2026
     </h2>
     <p class="mt-2 max-w-xl text-sm leading-relaxed text-muted">
-      As my workflow moved from assistant to agent fleet, monthly commit volume
-      grew roughly <strong class="text-fg">5×</strong> — from a ~26/month
-      baseline to a 124/month peak in June. Volume isn't quality, but it tracks
-      how much more ground the same hours now cover.
+      My first AI-co-authored commit landed <strong class="text-fg"
+        >April 30, 2026</strong
+      >. Two months later, monthly volume hit
+      <strong class="text-fg">152 commits</strong> — roughly
+      <strong class="text-fg">5×</strong> my 2025 average of ~30. The orange
+      share is counted straight from git
+      <code class="font-mono text-xs">Co-Authored-By</code> trailers, not
+      estimated. Volume isn't quality, but it tracks how much more ground the
+      same hours now cover.
     </p>
 
     <figure
@@ -108,23 +120,35 @@ const timeline = [
         {
           series.map((d, i) => {
             const x = padX + i * (barW + barGap);
-            const y = yFor(d.commits);
-            const h = padTop + plotH - y;
-            const isPeak = i === series.length - 1;
+            const yTotal = yFor(d.commits);
+            const hTotal = padTop + plotH - yTotal;
+            const yAi = yFor(d.ai);
+            const hAi = padTop + plotH - yAi;
+            const dim = d.partial ? '0.55' : '1';
             return (
-              <g>
+              <g opacity={dim}>
                 <rect
                   x={x}
-                  y={y}
+                  y={yTotal}
                   width={barW}
-                  height={h}
+                  height={hTotal}
                   rx="4"
-                  fill="var(--color-accent)"
-                  opacity={isPeak ? '1' : '0.45'}
+                  fill="var(--color-faint)"
+                  opacity="0.38"
                 />
+                {d.ai > 0 && (
+                  <rect
+                    x={x}
+                    y={yAi}
+                    width={barW}
+                    height={hAi}
+                    rx="4"
+                    fill="var(--color-accent)"
+                  />
+                )}
                 <text
                   x={x + barW / 2}
-                  y={y - 8}
+                  y={yTotal - 8}
                   text-anchor="middle"
                   font-family="var(--font-mono)"
                   font-size="12"
@@ -146,9 +170,44 @@ const timeline = [
             );
           })
         }
+        <line
+          x1={padX}
+          x2={W - 16}
+          y1={yFor(baseline)}
+          y2={yFor(baseline)}
+          stroke="var(--color-fg)"
+          stroke-width="1"
+          stroke-dasharray="5 4"
+          opacity="0.5"
+        />
+        <text
+          x={W - 20}
+          y={yFor(baseline) - 6}
+          text-anchor="end"
+          font-family="var(--font-mono)"
+          font-size="10.5"
+          fill="var(--color-muted)"
+        >
+          2025 avg (~30)
+        </text>
       </svg>
+      <div
+        class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-xs text-muted"
+      >
+        <span class="flex items-center gap-2">
+          <span class="inline-block h-2.5 w-2.5 rounded-[2px] bg-accent"></span>
+          AI pair-programmed (git co-author trailer)
+        </span>
+        <span class="flex items-center gap-2">
+          <span
+            class="inline-block h-2.5 w-2.5 rounded-[2px] bg-faint opacity-40"
+          ></span>
+          solo
+        </span>
+      </div>
       <figcaption class="mt-3 font-mono text-xs text-faint">
-        Monthly commits · Jan–Jun 2026 · self-reported from git history
+        Monthly commits · Jan–Jul 2026 · counted from git history · *Jul is
+        month-to-date
       </figcaption>
     </figure>
   </section>
@@ -170,7 +229,12 @@ const timeline = [
               )}
             </div>
             <div class="flex flex-col gap-1.5 pt-1">
-              <h3 class="font-semibold tracking-tight text-fg">{t.phase}</h3>
+              <h3 class="font-semibold tracking-tight text-fg">
+                {t.phase}
+                <span class="ml-2 font-mono text-xs font-normal text-faint">
+                  {t.when}
+                </span>
+              </h3>
               <p class="text-sm leading-relaxed text-muted">{t.body}</p>
             </div>
           </li>
@@ -180,13 +244,14 @@ const timeline = [
   </section>
 
   <section
-    class="mt-16 grid grid-cols-2 gap-4 sm:grid-cols-3"
+    class="mt-16 grid grid-cols-2 gap-4 sm:grid-cols-4"
     aria-label="Key numbers"
   >
     {
       [
         { n: '7', l: 'custom AI agents' },
-        { n: '42', l: 'indexed bugfix docs' },
+        { n: '276+', l: 'AI-paired commits' },
+        { n: '57', l: 'indexed bugfix docs' },
         { n: '~5×', l: 'commit velocity' },
       ].map((s) => (
         <div class="rounded-xl border border-border bg-surface p-5">
