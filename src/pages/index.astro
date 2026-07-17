@@ -2,15 +2,51 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import ProjectCard from '../components/ProjectCard.astro';
+import KnowledgeGraph from '../components/KnowledgeGraph.astro';
 
-const featured = (await getCollection('projects'))
-  .filter((p) => p.data.featured && !p.data.draft)
+const allProjects = (await getCollection('projects')).filter(
+  (p) => !p.data.draft,
+);
+
+const featured = allProjects
+  .filter((p) => p.data.featured)
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
 const latestLog = (await getCollection('changelog'))
   .filter((e) => !e.data.draft)
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
   .slice(0, 2);
+
+// Knowledge graph: brain (root) → domains (tags) → case studies (projects).
+const TAGS = ['AI Agents', 'CI/CD', 'Security', 'Tooling'];
+const SHORT: Record<string, string> = {
+  'crash-to-huly-pipeline': 'Crash→Task Pipeline',
+  'ai-agent-fleet': 'AI Agent Fleet',
+  'agentic-release-workflow': 'Agentic Release',
+  'cicd-engineering': 'CI/CD Engineering',
+  'security-flow-audit': 'Security Audit',
+  'design-tokens-pipeline': 'Design Tokens',
+};
+const graphData = {
+  nodes: [
+    { id: 'root', label: 'Roberto', type: 'root' as const },
+    ...TAGS.map((t) => ({ id: `tag:${t}`, label: t, type: 'tag' as const })),
+    ...allProjects.map((p) => ({
+      id: `proj:${p.id}`,
+      label: p.data.title,
+      short: SHORT[p.id] ?? p.data.title,
+      type: 'project' as const,
+      slug: `/projects/${p.id}`,
+      featured: p.data.featured,
+    })),
+  ],
+  edges: [
+    ...TAGS.map((t) => ({ source: 'root', target: `tag:${t}` })),
+    ...allProjects.flatMap((p) =>
+      p.data.tags.map((t) => ({ source: `tag:${t}`, target: `proj:${p.id}` })),
+    ),
+  ],
+};
 ---
 
 <Base
@@ -45,6 +81,13 @@ const latestLog = (await getCollection('changelog'))
         How I ship with AI
       </a>
     </div>
+  </section>
+
+  <section class="mt-20">
+    <h2 class="mb-6 text-sm font-semibold uppercase tracking-wider text-faint">
+      How it all connects
+    </h2>
+    <KnowledgeGraph data={graphData} />
   </section>
 
   <section class="mt-20">
