@@ -44,14 +44,18 @@ const { data } = Astro.props;
     width: 100%;
     height: 380px;
     border: 1px solid var(--border);
-    border-radius: 0.75rem;
+    border-radius: 1rem;
     background:
       radial-gradient(
-        ellipse at 50% 40%,
-        color-mix(in srgb, var(--accent) 7%, transparent),
-        transparent 70%
+        ellipse at 50% 35%,
+        color-mix(in srgb, var(--accent) 9%, transparent),
+        transparent 65%
       ),
-      var(--surface);
+      linear-gradient(
+        180deg,
+        var(--surface),
+        color-mix(in srgb, var(--surface) 60%, var(--bg))
+      );
     overflow: hidden;
   }
   @media (min-width: 640px) {
@@ -95,10 +99,14 @@ const { data } = Astro.props;
     const idx = new Map();
     const nodes = graphData.nodes.map((n, i) => {
       idx.set(n.id, i);
-      return { ...n, x: 0, y: 0, vx: 0, vy: 0 };
+      return { ...n, x: 0, y: 0, vx: 0, vy: 0, lit: 0 };
     });
     const edges = graphData.edges
-      .map((e) => ({ s: idx.get(e.source), t: idx.get(e.target) }))
+      .map((e, i) => ({
+        s: idx.get(e.source),
+        t: idx.get(e.target),
+        bow: (i % 2 ? 1 : -1) * (0.10 + (i % 3) * 0.04),
+      }))
       .filter((e) => e.s != null && e.t != null);
     const nbr = nodes.map(() => new Set());
     edges.forEach((e) => {
@@ -107,7 +115,10 @@ const { data } = Astro.props;
     });
 
     const radiusFor = (n) =>
-      n.type === 'root' ? 26 : n.type === 'tag' ? 12 : n.featured ? 19 : 16;
+      n.type === 'root' ? 27 : n.type === 'tag' ? 11 : n.featured ? 16 : 13;
+    // Approximate label-chip width so the physics can keep labels from overlapping.
+    const chipW = (n) =>
+      n.type === 'root' ? 60 : (n.short || n.label).length * 6.6 + 16;
 
     let W = 0,
       H = 0,
@@ -123,6 +134,7 @@ const { data } = Astro.props;
     }
 
     let C = {};
+    let dark = false;
     function css(v, fb) {
       const val = getComputedStyle(document.documentElement)
         .getPropertyValue(v)
@@ -130,10 +142,12 @@ const { data } = Astro.props;
       return val || fb;
     }
     function readColors() {
+      dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       C = {
         accent: css('--accent', '#ea580c'),
         fg: css('--fg', '#1c1917'),
         muted: css('--muted', '#57534e'),
+        faint: css('--faint', '#a8a29e'),
         border: css('--border', '#e7e5e4'),
         surface: css('--surface', '#ffffff'),
         bg: css('--bg', '#fafaf9'),
@@ -164,7 +178,7 @@ const { data } = Astro.props;
       const a = nodes[e.s],
         b = nodes[e.t];
       const s = Math.min(W, H);
-      return a.type === 'root' || b.type === 'root' ? s * 0.26 : s * 0.17;
+      return a.type === 'root' || b.type === 'root' ? s * 0.28 : s * 0.19;
     }
 
     function step() {
@@ -174,11 +188,35 @@ const { data } = Astro.props;
             dy = nodes[i].y - nodes[j].y;
           let d2 = dx * dx + dy * dy || 0.01;
           let d = Math.sqrt(d2);
-          let f = 3600 / d2;
+          let f = 5200 / d2;
           nodes[i].vx += (dx / d) * f;
           nodes[i].vy += (dy / d) * f;
           nodes[j].vx -= (dx / d) * f;
           nodes[j].vy -= (dy / d) * f;
+        }
+      }
+      // Label-aware separation: chips hang below nodes, so when two nodes sit in
+      // the same horizontal band, push them apart until their chips clear.
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i],
+            b = nodes[j];
+          const dy = a.y - b.y;
+          if (Math.abs(dy) > 40) continue;
+          const minX = (chipW(a) + chipW(b)) / 2 + 16;
+          const dx = a.x - b.x;
+          if (Math.abs(dx) < minX) {
+            const push = Math.max(
+              0.25,
+              ((minX - Math.abs(dx)) / minX) * 2.2,
+            );
+            const sx = dx >= 0 ? 1 : -1;
+            a.vx += sx * push;
+            b.vx -= sx * push;
+            const sy = dy >= 0 ? 1 : -1;
+            a.vy += sy * push * 0.5;
+            b.vy -= sy * push * 0.5;
+          }
         }
       }
       edges.forEach((e) => {
@@ -219,6 +257,42 @@ const { data } = Astro.props;
         n.x = Math.max(r, Math.min(W - r, n.x));
         n.y = Math.max(r, Math.min(H - r, n.y));
       });
+      // Hard exclusion zone around the root so no chip overlaps the brain.
+      const root = nodes.find((n) => n.type === 'root');
+      if (root) {
+        const keep = 78;
+        nodes.forEach((n) => {
+          if (n === root) return;
+          let dx = n.x - root.x,
+            dy = n.y - root.y;
+          let d = Math.hypot(dx, dy) || 0.01;
+          if (d < keep) {
+            n.x = root.x + (dx / d) * keep;
+            n.y = root.y + (dy / d) * keep;
+          }
+        });
+      }
+    }
+
+    // Curved-edge helpers: quadratic bezier with a perpendicular bow.
+    function ctrl(e) {
+      const a = nodes[e.s],
+        b = nodes[e.t];
+      const mx = (a.x + b.x) / 2,
+        my = (a.y + b.y) / 2;
+      const dx = b.x - a.x,
+        dy = b.y - a.y;
+      return { x: mx - dy * e.bow, y: my + dx * e.bow };
+    }
+    function onCurve(e, t) {
+      const a = nodes[e.s],
+        b = nodes[e.t],
+        c = ctrl(e);
+      const u = 1 - t;
+      return {
+        x: u * u * a.x + 2 * u * t * c.x + t * t * b.x,
+        y: u * u * a.y + 2 * u * t * c.y + t * t * b.y,
+      };
     }
 
     let pulses = [];
@@ -235,7 +309,7 @@ const { data } = Astro.props;
       let best = -1,
         bd = 1e9;
       for (let i = 0; i < nodes.length; i++) {
-        const r = radiusFor(nodes[i]) + 8;
+        const r = radiusFor(nodes[i]) + 10;
         const d = Math.hypot(nodes[i].x - mouse.x, nodes[i].y - mouse.y);
         if (d < r && d < bd) {
           bd = d;
@@ -249,85 +323,226 @@ const { data } = Astro.props;
       mouse.x = ev.clientX - rect.left;
       mouse.y = ev.clientY - rect.top;
       hover = pick();
-      canvas.style.cursor = hover >= 0 && nodes[hover].slug ? 'pointer' : 'default';
-      if (reduce) draw();
+      canvas.style.cursor =
+        hover >= 0 && nodes[hover].slug ? 'pointer' : 'default';
+      if (reduce) draw(0);
     });
     canvas.addEventListener('mouseleave', () => {
       mouse.x = mouse.y = -999;
       hover = -1;
       canvas.style.cursor = 'default';
-      if (reduce) draw();
+      if (reduce) draw(0);
     });
     canvas.addEventListener('click', () => {
-      if (hover >= 0 && nodes[hover].slug) window.location.href = nodes[hover].slug;
+      if (hover >= 0 && nodes[hover].slug)
+        window.location.href = nodes[hover].slug;
     });
 
-    function draw() {
+    function rrect(x, y, w, h, r) {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+      else {
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+    }
+
+    function chip(text, x, y, opts) {
+      ctx.font =
+        (opts.bold ? '600 ' : '500 ') +
+        '10.5px "Geist Mono Variable", ui-monospace, monospace';
+      const tw = ctx.measureText(text).width;
+      const padX = 7,
+        hh = 18;
+      const bx = x - tw / 2 - padX,
+        by = y - hh / 2;
+      rrect(bx, by, tw + padX * 2, hh, 9);
+      ctx.fillStyle = opts.lit ? C.accent : C.surface;
+      ctx.globalAlpha *= opts.lit ? 1 : dark ? 0.72 : 0.9;
+      ctx.fill();
+      ctx.globalAlpha = opts.alpha;
+      ctx.strokeStyle = opts.lit ? C.accent : C.border;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = opts.lit ? C.bg : opts.dim ? C.muted : C.fg;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, x, y + 0.5);
+    }
+
+    function dotGrid() {
+      const gap = 26;
+      ctx.fillStyle = C.faint;
+      ctx.globalAlpha = dark ? 0.10 : 0.14;
+      for (let x = gap / 2; x < W; x += gap)
+        for (let y = gap / 2; y < H; y += gap) {
+          ctx.beginPath();
+          ctx.arc(x, y, 0.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      ctx.globalAlpha = 1;
+    }
+
+    function draw(now) {
       ctx.clearRect(0, 0, W, H);
+      dotGrid();
+
       const active = hover >= 0;
       const near = (i) => !active || hover === i || nbr[hover].has(i);
+      nodes.forEach((n, i) => {
+        const target = active && (hover === i || nbr[hover].has(i)) ? 1 : 0;
+        n.lit += (target - n.lit) * (reduce ? 1 : 0.18);
+      });
 
+      // Edges — curved, gradient, glowing when lit.
       edges.forEach((e) => {
         const a = nodes[e.s],
-          b = nodes[e.t];
+          b = nodes[e.t],
+          c = ctrl(e);
         const lit = active && (e.s === hover || e.t === hover);
+        const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+        if (lit) {
+          grad.addColorStop(0, C.accent);
+          grad.addColorStop(1, C.accent);
+        } else {
+          grad.addColorStop(0, C.border);
+          grad.addColorStop(0.5, C.faint);
+          grad.addColorStop(1, C.border);
+        }
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.strokeStyle = lit ? C.accent : C.border;
-        ctx.globalAlpha = active ? (lit ? 0.9 : 0.2) : 0.55;
-        ctx.lineWidth = lit ? 1.6 : 1;
+        ctx.quadraticCurveTo(c.x, c.y, b.x, b.y);
+        ctx.strokeStyle = grad;
+        ctx.globalAlpha = active ? (lit ? 0.95 : 0.14) : 0.5;
+        ctx.lineWidth = lit ? 1.7 : 1;
+        if (lit) {
+          ctx.shadowColor = C.accent;
+          ctx.shadowBlur = 8;
+        }
         ctx.stroke();
+        ctx.shadowBlur = 0;
       });
       ctx.globalAlpha = 1;
 
+      // Pulses — comet head + fading tail, travelling along the curve.
       pulses.forEach((p) => {
-        const a = nodes[p.e.s],
-          b = nodes[p.e.t];
-        const tt = p.dir > 0 ? p.t : 1 - p.t;
-        const x = a.x + (b.x - a.x) * tt,
-          y = a.y + (b.y - a.y) * tt;
-        ctx.beginPath();
-        ctx.arc(x, y, 2.6, 0, Math.PI * 2);
-        ctx.fillStyle = C.accent;
-        ctx.shadowColor = C.accent;
-        ctx.shadowBlur = 10;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      });
-
-      nodes.forEach((n, i) => {
-        const r = radiusFor(n);
-        ctx.globalAlpha = near(i) ? 1 : 0.28;
-        if (n.type === 'root') ctx.fillStyle = C.accent;
-        else if (hover === i) ctx.fillStyle = C.accent;
-        else ctx.fillStyle = C.surface;
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 1.5;
-        ctx.strokeStyle =
-          n.type === 'root' ? C.accent : hover === i ? C.accent : C.border;
-        ctx.stroke();
-
-        if (near(i)) {
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          if (n.type === 'root') {
-            ctx.fillStyle = C.bg;
-            ctx.font = '600 12px "Geist Variable", ui-sans-serif, sans-serif';
-            ctx.fillText(n.label, n.x, n.y);
-          } else {
-            const lit = hover === i || (active && nbr[hover].has(i));
-            ctx.fillStyle = n.type === 'tag' ? C.fg : lit ? C.fg : C.muted;
-            ctx.font =
-              (n.type === 'tag' ? '600 11px' : '500 11px') +
-              ' "Geist Variable", ui-sans-serif, sans-serif';
-            ctx.fillText(n.short || n.label, n.x, n.y + r + 11);
+        for (let k = 0; k < 5; k++) {
+          const tt = Math.max(
+            0,
+            Math.min(1, (p.dir > 0 ? p.t : 1 - p.t) - k * 0.03 * p.dir),
+          );
+          const pos = onCurve(p.e, tt);
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, k === 0 ? 2.4 : 2 - k * 0.35, 0, Math.PI * 2);
+          ctx.fillStyle = C.accent;
+          ctx.globalAlpha = k === 0 ? 0.95 : 0.5 - k * 0.1;
+          if (k === 0) {
+            ctx.shadowColor = C.accent;
+            ctx.shadowBlur = 12;
           }
+          ctx.fill();
+          ctx.shadowBlur = 0;
         }
       });
       ctx.globalAlpha = 1;
+
+      // Nodes.
+      nodes.forEach((n, i) => {
+        const r = radiusFor(n);
+        const base = near(i) ? 1 : 0.22;
+        ctx.globalAlpha = base;
+
+        if (n.type === 'root') {
+          // Breathing halo rings.
+          if (!reduce) {
+            for (let k = 0; k < 2; k++) {
+              const ph = ((now / 2600 + k * 0.5) % 1 + 1) % 1;
+              ctx.beginPath();
+              ctx.arc(n.x, n.y, r + 4 + ph * 26, 0, Math.PI * 2);
+              ctx.strokeStyle = C.accent;
+              ctx.globalAlpha = base * 0.35 * (1 - ph);
+              ctx.lineWidth = 1.2;
+              ctx.stroke();
+            }
+            ctx.globalAlpha = base;
+          }
+          const g = ctx.createRadialGradient(
+            n.x - r * 0.35,
+            n.y - r * 0.4,
+            r * 0.2,
+            n.x,
+            n.y,
+            r,
+          );
+          g.addColorStop(0, dark ? '#fdba74' : '#fb923c');
+          g.addColorStop(1, C.accent);
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = g;
+          ctx.shadowColor = C.accent;
+          ctx.shadowBlur = 22;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = dark ? '#0c0a09' : '#ffffff';
+          ctx.font = '600 12px "Geist Variable", ui-sans-serif, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(n.label, n.x, n.y + 0.5);
+        } else {
+          const isTag = n.type === 'tag';
+          const litAmt = n.lit;
+          // Soft glow behind lit / hovered nodes.
+          if (litAmt > 0.05) {
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, r + 6, 0, Math.PI * 2);
+            ctx.fillStyle = C.accent;
+            ctx.globalAlpha = base * 0.16 * litAmt;
+            ctx.fill();
+            ctx.globalAlpha = base;
+          }
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = hover === i ? C.accent : C.surface;
+          if (hover === i) {
+            ctx.shadowColor = C.accent;
+            ctx.shadowBlur = 16;
+          }
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.lineWidth = isTag ? 1.6 : 1.3;
+          ctx.strokeStyle =
+            hover === i
+              ? C.accent
+              : litAmt > 0.4
+                ? C.accent
+                : isTag
+                  ? C.faint
+                  : C.border;
+          ctx.stroke();
+          // Inner accent dot for domain hubs.
+          if (isTag && hover !== i) {
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, 3.2, 0, Math.PI * 2);
+            ctx.fillStyle = C.accent;
+            ctx.fill();
+          }
+
+          if (near(i)) {
+            const lit = hover === i || (active && nbr[hover].has(i));
+            chip(n.short || n.label, n.x, n.y + r + 15, {
+              lit: hover === i,
+              bold: isTag,
+              dim: !isTag && !lit,
+              alpha: base,
+            });
+          }
+        }
+        ctx.globalAlpha = 1;
+      });
     }
 
     let raf = 0,
@@ -336,13 +551,13 @@ const { data } = Astro.props;
     function frame(now) {
       if (!running) return;
       step();
-      if (now - lastPulse > 850 && visible) {
+      if (now - lastPulse > 780 && visible) {
         spawnPulse();
         lastPulse = now;
       }
-      pulses.forEach((p) => (p.t += 0.016));
+      pulses.forEach((p) => (p.t += 0.014));
       pulses = pulses.filter((p) => p.t < 1);
-      draw();
+      draw(now);
       raf = requestAnimationFrame(frame);
     }
     function start() {
@@ -376,7 +591,7 @@ const { data } = Astro.props;
     init();
     for (let k = 0; k < (reduce ? 220 : 60); k++) step();
     recenter();
-    draw();
+    draw(0);
 
     if (!reduce) {
       const io = new IntersectionObserver(
@@ -401,7 +616,8 @@ const { data } = Astro.props;
         if (reduce) {
           init();
           for (let k = 0; k < 220; k++) step();
-          draw();
+          recenter();
+          draw(0);
         }
       }, 150);
     });
@@ -409,7 +625,7 @@ const { data } = Astro.props;
       .matchMedia('(prefers-color-scheme: dark)')
       .addEventListener('change', () => {
         readColors();
-        if (reduce) draw();
+        if (reduce) draw(0);
       });
   })();
 </script>
